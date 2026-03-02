@@ -56,17 +56,6 @@ readinessProbe:
   timeoutSeconds: 2
   failureThreshold: 3
 
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  hosts:
-  - host: ldproxy.local
-    paths:
-    - path: /
-      pathType: Prefix
-  tls: []
-
 # References to the external service and provider configuration files.
 # These are created outside this chart and must end up at
 #   /ldproxy/data/entities/instances/features/providers/streets.yml
