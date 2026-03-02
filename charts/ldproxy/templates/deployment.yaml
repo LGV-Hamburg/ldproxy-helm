@@ -53,7 +53,7 @@ spec:
           volumeMounts:
             - name: data
               mountPath: {{ .Values.persistence.mountPath }}
-          {{- if .Values.config.useConfigMaps }}
+          {{- if .Values.serviceConfig.useConfigMaps }}
             # Mount the full ConfigMap as a directory so Kubernetes automatically
             # propagates updates when the ConfigMap changes (subPath would prevent this).
             - name: service-config
@@ -76,13 +76,13 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
-      {{- if .Values.config.useConfigMaps }}
+      {{- if .Values.serviceConfig.useConfigMaps }}
         - name: service-config
           configMap:
-            name: {{ .Values.config.serviceConfigMap }}
+            name: {{ .Values.serviceConfig.serviceConfigMap }}
         - name: provider-config
           configMap:
-            name: {{ .Values.config.providerConfigMap }}
+            name: {{ .Values.serviceConfig.providerConfigMap }}
       {{- end }}
         - name: cfg
           configMap:
