@@ -1,0 +1,84 @@
+replicaCount: 1
+
+image:
+  repository: iide/ldproxy
+  tag: "4.6.1"
+  pullPolicy: IfNotPresent
+  pullSecret: []
+    # - name: "my-registry-secret"
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 7080
+
+resources: {}
+  # limits:
+  #   cpu: 500m
+  #   memory: 512Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 256Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+persistence:
+  enabled: true
+  # If using an existing PVC (recommended, since PV/PVC are managed outside this chart),
+  # set existingClaim to its name. If empty and enabled is true, a PVC will be created.
+  existingClaim: ""
+  # if not using existingClaim:
+  storageClass: ""
+  accessModes:
+  - ReadWriteOnce
+  size: 10Gi
+  mountPath: /ldproxy/data/resources/features
+
+livenessProbe:
+  enabled: true
+  path: /
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  path: /
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+  - host: ldproxy.local
+    paths:
+    - path: /
+      pathType: Prefix
+  tls: []
+
+# References to the external service and provider configuration files.
+# These are created outside this chart and must end up at
+#   /ldproxy/data/entities/instances/features/providers/streets.yml
+#   /ldproxy/data/entities/instances/features/services/streets.yml
+# Usually this means they live on the same PVC at those paths.
+config:
+  # Optional: if the service/provider configs are delivered via existing ConfigMaps instead
+  # of residing on the PVC, you can specify them here.
+  # Each ConfigMap is mounted as a directory (NOT with subPath) so that Kubernetes
+  # automatically propagates ConfigMap updates to the container without a pod restart.
+  # Each ConfigMap must contain exactly one key matching the filename ldproxy expects
+  # (e.g. "data.yml"), which will appear as a file inside the mounted directory.
+  useConfigMaps: false
+  serviceConfigMap: ""
+  providerConfigMap: ""

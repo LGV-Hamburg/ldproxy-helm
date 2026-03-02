@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ldproxy
+version: 0.1.0
+appVersion: "4.6.0"
+description: Helm chart to deploy ldproxy instances, each serving one GPKG dataset.
+type: application

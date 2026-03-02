@@ -1,0 +1,59 @@
+---
+id: buildings_alkis
+createdAt: 1723536915303
+lastModified: 1723536915303
+entityStorageVersion: 2
+label: Buildings HH (based on INSPIRE_HH_Gebaeude_2D_ALKIS_2020-07-15)
+serviceType: OGC_API
+api:
+- buildingBlock: COLLECTIONS
+- buildingBlock: CSV
+  transformations:
+    '*':
+    - flatten: .
+- buildingBlock: FLATGEOBUF
+  transformations:
+    '*':
+    - flatten: .
+- buildingBlock: TILES
+  transformations:
+    '*':
+    - flatten: .
+- buildingBlock: SCHEMA
+  enabled: true
+- buildingBlock: PROJECTIONS
+  enabled: true
+- buildingBlock: FILTER
+  enabled: true
+- buildingBlock: QUERYABLES
+  enabled: true
+  included:
+  - '*'
+- buildingBlock: CRS
+  additionalCrs:
+  - code: 25832
+    forceAxisOrder: NONE
+  - code: 4326
+    forceAxisOrder: NONE
+  - code: 3857
+    forceAxisOrder: NONE
+collections:
+  buildings_alkis:
+    id: buildings_alkis
+    label: Buildings HH
+    enabled: true
+    api:
+    - buildingBlock: FEATURES_CORE
+      enabled: true
+      itemType: feature
+      queryables:
+        spatial:
+        - geometry
+        q:
+        - building_height
+    - buildingBlock: SORTING
+      enabled: true
+      sortables:
+      - building_height
+    - buildingBlock: FILTER
+      enabled: True

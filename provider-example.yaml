@@ -1,0 +1,50 @@
+---
+id: buildings_alkis
+entityStorageVersion: 2
+createdAt: 1723536914550
+lastModified: 1723536914550
+providerType: FEATURE
+providerSubType: SQL
+nativeCrs:
+  code: 4326
+  forceAxisOrder: LON_LAT
+typeValidation: NONE
+connectionInfo:
+  dialect: GPKG
+  database: buildings_alkis.gpkg
+  pool:
+    maxConnections: -1
+    minConnections: 1
+    initFailFast: true
+    initFailTimeout: 1
+    idleTimeout: 10m
+    shared: false
+sourcePathDefaults:
+  primaryKey: fid
+  sortKey: fid
+queryGeneration:
+  chunkSize: 10000
+  computeNumberMatched: true
+types:
+  buildings_alkis:
+    sourcePath: /buildings_alkis_v10
+    properties:
+      id:
+        sourcePath: localId
+        type: STRING
+      fid:
+        sourcePath: fid
+        type: INTEGER
+        role: ID
+        excludedScopes:
+        - RECEIVABLE
+      geometry:
+        sourcePath: geom
+        type: GEOMETRY
+        role: PRIMARY_GEOMETRY
+        geometryType: POLYGON
+      building_height:
+        sourcePath: building_height
+        type: FLOAT
+      numberOfFloorsAboveGround:
+        sourcePath: numberOfFloorsAboveGround
