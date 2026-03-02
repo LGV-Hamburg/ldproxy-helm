@@ -57,9 +57,11 @@ spec:
             # Mount the full ConfigMap as a directory so Kubernetes automatically
             # propagates updates when the ConfigMap changes (subPath would prevent this).
             - name: service-config
-              mountPath: /ldproxy/data/entities/instances/features/services
+              mountPath: /ldproxy/data/entities/instances/features/services/service.yml
+              subPath: service.yml
             - name: provider-config
-              mountPath: /ldproxy/data/entities/instances/features/providers
+              mountPath: /ldproxy/data/entities/instances/features/providers/provider.yml
+              subPath: provider.yml
           {{- end }}
             - name: cfg
               mountPath: /ldproxy/data
