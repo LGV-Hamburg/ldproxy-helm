@@ -68,7 +68,7 @@ readinessProbe:
 #   /ldproxy/data/entities/instances/features/providers/streets.yml
 #   /ldproxy/data/entities/instances/features/services/streets.yml
 # Usually this means they live on the same PVC at those paths.
-config:
+serviceConfig:
   # Optional: if the service/provider configs are delivered via existing ConfigMaps instead
   # of residing on the PVC, you can specify them here.
   # Each ConfigMap is mounted as a directory (NOT with subPath) so that Kubernetes
@@ -78,3 +78,7 @@ config:
   useConfigMaps: false
   serviceConfigMap: ""
   providerConfigMap: ""
+
+serverConfig:
+  externalUrl: "localhost:7080"
+  existingCfgConfigMap: ""

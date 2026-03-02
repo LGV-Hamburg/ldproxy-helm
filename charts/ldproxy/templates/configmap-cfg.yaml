@@ -1,0 +1,39 @@
+{{ if not .Values.serverConfig.existingCfgConfigMap }}
+kind: ConfigMap
+metadata:
+  name: {{ include "ldproxy.fullname" . }}-cfg
+  labels:
+    {{- include "ldproxy.labels" . | nindent 4 }}
+data:
+    cfg.yml: |-
+    ---
+    server:
+      externalUrl: {{ .Values.serverConfig.externalUrl }}
+      applicationConnectors:
+        - type: http
+          port: 7080
+      requestLog:
+        type: classic
+        timeZone: Europe/Berlin
+        appenders:
+            - type: file
+            currentLogFilename: data/log/requests.log
+            archive: true
+            archivedLogFilenamePattern: data/log/requests-%d.zip
+            archivedFileCount: 7
+    logging:
+      level: 'DEBUG'
+      appenders:
+      - type: console
+        timeZone: Europe/Berlin
+      loggers:
+          de.ii: DEBUG
+    store:
+      mode: RO
+    # sources:
+    # - type: FS
+    #   content: ALL
+    #   src: /ldproxy/data
+    backgroundTasks:
+      maxThreads: 1
+{{- end }}

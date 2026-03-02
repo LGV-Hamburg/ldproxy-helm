@@ -61,6 +61,8 @@ spec:
             - name: provider-config
               mountPath: /ldproxy/data/entities/instances/features/providers
           {{- end }}
+            - name: cfg
+              mountPath: /ldproxy/data
           resources:
 {{- toYaml .Values.resources | nindent 12 }}
       volumes:
@@ -82,3 +84,10 @@ spec:
           configMap:
             name: {{ .Values.config.providerConfigMap }}
       {{- end }}
+        - name: cfg
+          configMap:
+        {{if not .Values.serverConfig.existingCfgConfigMap }}
+            name: {{ include "ldproxy.fullname" . }}-cfg
+        {{else}}
+            name: {{ .Values.serverConfig.existingCfgConfigMap }}
+        {{- end }}
