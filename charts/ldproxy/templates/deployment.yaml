@@ -18,8 +18,32 @@ spec:
       imagePullSecrets:
         - name: {{ .Values.image.pullSecret }}
       {{- end }}
-      {{- if .Values.serviceConfig.useConfigMaps }}
       initContainers:
+        # Always runs: copies the GPKG from the Azure file share (PVC) into a writable
+        # emptyDir so the main container never holds an open handle on the file share.
+        - name: init-gpkg
+          image: {{ .Values.initContainer.image }}
+          command:
+            - sh
+            - -c
+            - |-
+              set -e
+              mkdir -p {{ .Values.persistence.mountPath }}
+              {{- if .Values.persistence.gpkgFileName }}
+              cp /source/{{ .Values.persistence.gpkgFileName }} {{ .Values.persistence.mountPath }}/{{ .Values.persistence.gpkgFileName }}
+              {{- else }}
+              cp /source/*.gpkg {{ .Values.persistence.mountPath }}/
+              {{- end }}
+              echo "GPKG copy done."
+          volumeMounts:
+            - name: data
+              mountPath: /source
+              readOnly: true
+            - name: gpkg
+              mountPath: {{ .Values.persistence.mountPath }}
+        {{- if .Values.serviceConfig.useConfigMaps }}
+        # Runs when ConfigMaps supply entity configs: builds the ldproxy store directory
+        # tree as real files so ldproxy does not encounter symlinks.
         - name: init-store
           image: {{ .Values.initContainer.image }}
           command:
@@ -47,7 +71,7 @@ spec:
               mountPath: /cm-service
             - name: provider-config
               mountPath: /cm-provider
-      {{- end }}
+        {{- end }}
       containers:
         - name: ldproxy
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -91,8 +115,8 @@ spec:
               mountPath: /data/cfg.yml
               subPath: cfg.yml
             {{- end }}
-            # PVC for geodata (GPKG), mounted on top of /data
-            - name: data
+            # GPKG copied from the PVC by init-gpkg; main container uses the emptyDir copy
+            - name: gpkg
               mountPath: {{ .Values.persistence.mountPath }}
             - name: tmp
               mountPath: /data/tmp
@@ -100,6 +124,9 @@ spec:
 {{- toYaml .Values.resources | nindent 12 }}
       volumes:
         - name: tmp
+          emptyDir: {}
+        # emptyDir populated by init-gpkg; main container reads the GPKG from here
+        - name: gpkg
           emptyDir: {}
         {{- if .Values.serviceConfig.useConfigMaps }}
         - name: store

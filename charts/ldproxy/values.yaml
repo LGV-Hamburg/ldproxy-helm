@@ -45,7 +45,10 @@ persistence:
   accessModes:
   - ReadWriteOnce
   size: 10Gi
-  mountPath: /ldproxy/data/resources/features
+  mountPath: /data/resources/features
+  # Filename of the GPKG on the PVC to copy into the container.
+  # If empty, all *.gpkg files are copied.
+  gpkgFileName: ""
 
 livenessProbe:
   enabled: true
