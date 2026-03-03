@@ -14,20 +14,50 @@ spec:
       labels:
         {{- include "ldproxy.selectorLabels" . | nindent 8 }}
     spec:
+      {{- if .Values.image.pullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecret }}
+      {{- end }}
+      {{- if .Values.serviceConfig.useConfigMaps }}
+      initContainers:
+        - name: init-store
+          image: {{ .Values.initContainer.image }}
+          command:
+            - sh
+            - -c
+            - |-
+              set -e
+              mkdir -p /store/entities/instances/services
+              mkdir -p /store/entities/instances/providers
+              mkdir -p /store/entities/defaults
+              mkdir -p /store/entities/overrides
+              mkdir -p /store/values
+              mkdir -p /store/resources
+              cp /cm-cfg/cfg.yml /store/cfg.yml
+              cp /cm-service/{{ .Values.serviceConfig.serviceConfigKey }} \
+                /store/entities/instances/services/{{ .Values.serviceConfig.serviceConfigKey }}
+              cp /cm-provider/{{ .Values.serviceConfig.providerConfigKey }} \
+                /store/entities/instances/providers/{{ .Values.serviceConfig.providerConfigKey }}
+          volumeMounts:
+            - name: store
+              mountPath: /store
+            - name: cfg
+              mountPath: /cm-cfg
+            - name: service-config
+              mountPath: /cm-service
+            - name: provider-config
+              mountPath: /cm-provider
+      {{- end }}
       containers:
         - name: ldproxy
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if .Values.image.pullSecret }}
-          imagePullSecrets:
-            - name: {{ .Values.image.pullSecret }}
-          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
           env:
-            # Example: ensure ldproxy looks for its data in /ldproxy/data
+            # Example: ensure ldproxy looks for its data in /data
             - name: LDPROXY_DATA_DIR
               value: {{ .Values.persistence.mountPath | quote }}
           {{- if .Values.livenessProbe.enabled }}
@@ -51,28 +81,39 @@ spec:
             failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
           {{- end }}
           volumeMounts:
+            {{- if .Values.serviceConfig.useConfigMaps }}
+            # store was fully initialised by the init container — real files, no symlinks
+            - name: store
+              mountPath: /data
+            {{- else }}
+            # cfg.yml via subPath: only ok here because service/provider configs live on the PVC
+            - name: cfg
+              mountPath: /data/cfg.yml
+              subPath: cfg.yml
+            {{- end }}
+            # PVC for geodata (GPKG), mounted on top of /data
             - name: data
               mountPath: {{ .Values.persistence.mountPath }}
-          {{- if .Values.serviceConfig.useConfigMaps }}
-            # Mount the full ConfigMap as a directory so Kubernetes automatically
-            # propagates updates when the ConfigMap changes (subPath would prevent this).
-            - name: service-config
-              mountPath: /ldproxy/data/entities/instances/features/services/service.yml
-              subPath: service.yml
-            - name: provider-config
-              mountPath: /ldproxy/data/entities/instances/features/providers/provider.yml
-              subPath: provider.yml
-          {{- end }}
-            - name: cfg
-              mountPath: /ldproxy/data
             - name: tmp
-              mountPath: /ldproxy/data/tmp
-              readOnly: false
+              mountPath: /data/tmp
           resources:
 {{- toYaml .Values.resources | nindent 12 }}
       volumes:
         - name: tmp
           emptyDir: {}
+        {{- if .Values.serviceConfig.useConfigMaps }}
+        - name: store
+          emptyDir: {}
+        - name: service-config
+          configMap:
+            name: {{ .Values.serviceConfig.serviceConfigMap }}
+        - name: provider-config
+          configMap:
+            name: {{ .Values.serviceConfig.providerConfigMap }}
+        {{- end }}
+        - name: cfg
+          configMap:
+            name: {{ if .Values.serverConfig.existingCfgConfigMap }}{{ .Values.serverConfig.existingCfgConfigMap }}{{ else }}{{ include "ldproxy.fullname" . }}-cfg{{ end }}
         - name: data
           {{- if and .Values.persistence.enabled .Values.persistence.existingClaim }}
           persistentVolumeClaim:
@@ -83,18 +124,3 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
-      {{- if .Values.serviceConfig.useConfigMaps }}
-        - name: service-config
-          configMap:
-            name: {{ .Values.serviceConfig.serviceConfigMap }}
-        - name: provider-config
-          configMap:
-            name: {{ .Values.serviceConfig.providerConfigMap }}
-      {{- end }}
-        - name: cfg
-          configMap:
-        {{if not .Values.serverConfig.existingCfgConfigMap }}
-            name: {{ include "ldproxy.fullname" . }}-cfg
-        {{else}}
-            name: {{ .Values.serverConfig.existingCfgConfigMap }}
-        {{- end }}

@@ -77,7 +77,13 @@ serviceConfig:
   # (e.g. "data.yml"), which will appear as a file inside the mounted directory.
   useConfigMaps: false
   serviceConfigMap: ""
+  serviceConfigKey: ""
   providerConfigMap: ""
+  providerConfigKey: ""
+
+initContainer:
+  # busybox image used to build the ldproxy store directory in the init container
+  image: busybox:1.36
 
 serverConfig:
   externalUrl: "localhost:7080"
