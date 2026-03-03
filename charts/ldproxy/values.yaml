@@ -83,6 +83,7 @@ serviceConfig:
   serviceConfigKey: ""
   providerConfigMap: ""
   providerConfigKey: ""
+  datasetId: ""
 
 initContainer:
   # busybox image used to build the ldproxy store directory in the init container
@@ -91,3 +92,11 @@ initContainer:
 serverConfig:
   externalUrl: "localhost:7080"
   existingCfgConfigMap: ""
+
+gateway:
+  # The name of the Gateway this HTTPRoute should attach to. The Gateway must already exist.
+  # This chart does not create the Gateway, since it is usually shared by multiple HTTPRoutes.
+  gatewayName: ""
+  hostname: ""
+  sectionName: web
+  sectionNameTls: websecure
