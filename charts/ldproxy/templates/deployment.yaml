@@ -35,6 +35,8 @@ spec:
               cp /source/*.gpkg {{ .Values.persistence.mountPath }}/
               {{- end }}
               echo "GPKG copy done."
+          resources:
+{{- toYaml .Values.initContainerResources | nindent 12 }}
           volumeMounts:
             - name: data
               mountPath: /source
@@ -71,6 +73,8 @@ spec:
               mountPath: /cm-service
             - name: provider-config
               mountPath: /cm-provider
+          resources:
+{{- toYaml .Values.initContainerResources | nindent 12 }}
         {{- end }}
       containers:
         - name: ldproxy

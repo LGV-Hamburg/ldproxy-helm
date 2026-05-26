@@ -21,13 +21,21 @@ service:
   type: ClusterIP
   port: 7080
 
-resources: {}
-  # limits:
-  #   cpu: 500m
-  #   memory: 512Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 256Mi
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+initContainerResources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 64Mi
 
 nodeSelector: {}
 
