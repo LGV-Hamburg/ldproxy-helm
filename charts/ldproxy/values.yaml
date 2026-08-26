@@ -91,6 +91,11 @@ serviceConfig:
   serviceConfigKey: ""
   providerConfigMap: ""
   providerConfigKey: ""
+  # Optional second provider ConfigMap (e.g. a tiles provider), merged into the
+  # same providers directory as providerConfigMap via a projected volume.
+  tilesProviderConfigMap: ""
+  tilesProviderConfigKey: ""
+  # datasetId is used for the HTTPRoute path prefix.
   datasetId: ""
 
 initContainer:
