@@ -43,39 +43,6 @@ spec:
               readOnly: true
             - name: gpkg
               mountPath: {{ .Values.persistence.mountPath }}
-        {{- if .Values.serviceConfig.useConfigMaps }}
-        # Runs when ConfigMaps supply entity configs: builds the ldproxy store directory
-        # tree as real files so ldproxy does not encounter symlinks.
-        - name: init-store
-          image: {{ .Values.initContainer.image }}
-          command:
-            - sh
-            - -c
-            - |-
-              set -e
-              mkdir -p /store/entities/instances/services
-              mkdir -p /store/entities/instances/providers
-              mkdir -p /store/entities/defaults
-              mkdir -p /store/entities/overrides
-              mkdir -p /store/values
-              mkdir -p /store/resources
-              cp /cm-cfg/cfg.yml /store/cfg.yml
-              cp /cm-service/{{ .Values.serviceConfig.serviceConfigKey }} \
-                /store/entities/instances/services/{{ .Values.serviceConfig.serviceConfigKey }}
-              cp /cm-provider/{{ .Values.serviceConfig.providerConfigKey }} \
-                /store/entities/instances/providers/{{ .Values.serviceConfig.providerConfigKey }}
-          volumeMounts:
-            - name: store
-              mountPath: /store
-            - name: cfg
-              mountPath: /cm-cfg
-            - name: service-config
-              mountPath: /cm-service
-            - name: provider-config
-              mountPath: /cm-provider
-          resources:
-{{- toYaml .Values.initContainerResources | nindent 12 }}
-        {{- end }}
       containers:
         - name: ldproxy
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -110,15 +77,24 @@ spec:
           {{- end }}
           volumeMounts:
             {{- if .Values.serviceConfig.useConfigMaps }}
-            # store was fully initialised by the init container — real files, no symlinks
-            - name: store
-              mountPath: /data
-            {{- else }}
-            # cfg.yml via subPath: only ok here because service/provider configs live on the PVC
+            # mounted directly (no subPath), so ConfigMap updates propagate without a restart
+            - name: entities-services
+              mountPath: /data/entities/instances/services
+            - name: entities-providers
+              mountPath: /data/entities/instances/providers
+            - name: entities-defaults
+              mountPath: /data/entities/defaults
+            - name: entities-overrides
+              mountPath: /data/entities/overrides
+            - name: entities-values
+              mountPath: /data/values
+            - name: entities-resources
+              mountPath: /data/resources
+            {{- end }}
+            # cfg.yml is only read at startup, so subPath (no live reload) is fine here
             - name: cfg
               mountPath: /data/cfg.yml
               subPath: cfg.yml
-            {{- end }}
             # GPKG copied from the PVC by init-gpkg; main container uses the emptyDir copy
             - name: gpkg
               mountPath: {{ .Values.persistence.mountPath }}
@@ -133,14 +109,33 @@ spec:
         - name: gpkg
           emptyDir: {}
         {{- if .Values.serviceConfig.useConfigMaps }}
-        - name: store
-          emptyDir: {}
-        - name: service-config
+        - name: entities-services
           configMap:
             name: {{ .Values.serviceConfig.serviceConfigMap }}
-        - name: provider-config
-          configMap:
-            name: {{ .Values.serviceConfig.providerConfigMap }}
+        # projected volume merges base + tiles provider CMs into a single directory
+        - name: entities-providers
+          projected:
+            sources:
+              - configMap:
+                  name: {{ .Values.serviceConfig.providerConfigMap }}
+                  items:
+                    - key: {{ .Values.serviceConfig.providerConfigKey }}
+                      path: {{ .Values.serviceConfig.providerConfigKey }}
+              {{- if .Values.serviceConfig.tilesProviderConfigMap }}
+              - configMap:
+                  name: {{ .Values.serviceConfig.tilesProviderConfigMap }}
+                  items:
+                    - key: {{ .Values.serviceConfig.tilesProviderConfigKey }}
+                      path: {{ .Values.serviceConfig.tilesProviderConfigKey }}
+              {{- end }}
+        - name: entities-defaults
+          emptyDir: {}
+        - name: entities-overrides
+          emptyDir: {}
+        - name: entities-values
+          emptyDir: {}
+        - name: entities-resources
+          emptyDir: {}
         {{- end }}
         - name: cfg
           configMap:
