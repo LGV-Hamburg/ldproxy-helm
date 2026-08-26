@@ -1,0 +1,101 @@
+# Example: cfg.yml ConfigMap with authorization enabled.
+#
+# Use this as a reference when you want full control over cfg.yml by bringing
+# your own ConfigMap instead of generating one from Helm values.
+#
+# To reference it in the Helm chart:
+#   serverConfig:
+#     existingCfgConfigMap: ldproxy-cfg-auth
+#
+# Three identity-provider types are supported (pick one and remove the others):
+#   OIDC       – validates signed JWTs via the IdP's well-known endpoint
+#   USER_INFO  – delegates token validation to an external userinfo endpoint
+#   JWT        – validates JWTs locally with a static signing key
+#
+# An optional XACML_JSON policy-decision provider can be added alongside any
+# identity provider for fine-grained attribute-based access control.
+#
+# Reference: https://next.docs.ldproxy.net/de/application/20-configuration/40-auth
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ldproxy-cfg-auth
+data:
+  cfg.yml: |-
+    ---
+    server:
+      externalUrl: https://example.org/ldproxy
+      applicationConnectors:
+        - type: http
+          port: 7080
+
+    logging:
+      level: INFO
+      appenders:
+        - type: console
+          timeZone: Europe/Berlin
+      loggers:
+        de.ii: INFO
+
+    store:
+      mode: RO
+
+    jobs:
+      maxThreads: 1
+
+    # ---------------------------------------------------------------------------
+    # Authorization
+    # ---------------------------------------------------------------------------
+    auth:
+      providers:
+
+        # -----------------------------------------------------------------------
+        # Option A: OpenID Connect (e.g. Keycloak)
+        # Validates signed JWTs using certificates from the IdP's discovery doc.
+        # -----------------------------------------------------------------------
+        oidc-provider:
+          type: OIDC
+          # Discovery endpoint - must end with .well-known/openid-configuration
+          endpoint: https://my-keycloak/realms/ldproxy/.well-known/openid-configuration
+          # Enable the integrated login redirect for browser-based API clients.
+          login:
+            clientId: ldproxy-integrated
+            # clientSecret: ""   # optional; required for confidential clients
+          # Map token claims to ldproxy's internal claim names.
+          # Nested JSON objects are supported: e.g. "resource_access.ldproxy.roles"
+          claims:
+            userName: preferred_username   # default: sub
+            permissions: roles             # default: roles
+            # audience: aud               # default: aud
+            # scopes: scope               # default: scope
+
+        # -----------------------------------------------------------------------
+        # Option B: User-Info endpoint
+        # Delegates validation to an external HTTP endpoint.
+        # -----------------------------------------------------------------------
+        # userinfo-provider:
+        #   type: USER_INFO
+        #   # {token} is replaced with the bearer token at runtime.
+        #   endpoint: https://my-userinfo-endpoint?token={token}
+        #   claims:
+        #     userName: name
+
+        # -----------------------------------------------------------------------
+        # Option C: Static JWT signing key
+        # Validates JWTs locally without contacting an IdP.
+        # -----------------------------------------------------------------------
+        # jwt-provider:
+        #   type: JWT
+        #   signingKey: 'nurrK3JeUC3ccqs5CESFzgjCsCj3omS+PxDvMeSngqM='
+        #   claims:
+        #     userName: user
+
+        # -----------------------------------------------------------------------
+        # Optional: XACML JSON Policy Decision Point
+        # Can be combined with any identity provider above for ABAC policies.
+        # Reference: https://next.docs.ldproxy.net/de/application/20-configuration/40-auth#xacml-json
+        # -----------------------------------------------------------------------
+        # xacml-pdp:
+        #   type: XACML_JSON
+        #   endpoint: https://my-pdp/api/pdp
