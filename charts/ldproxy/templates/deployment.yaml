@@ -52,9 +52,10 @@ spec:
               containerPort: {{ .Values.service.port }}
               protocol: TCP
           env:
-            # Example: ensure ldproxy looks for its data in /data
-            - name: LDPROXY_DATA_DIR
-              value: {{ .Values.persistence.mountPath | quote }}
+            # LDPROXY_DATA_DIR is not a recognized ldproxy setting; the app always
+            # uses /data as its data directory. Verify persistence.mountPath instead
+            # (see gpkg volumeMount below): it must resolve to /data/resources/features/
+            # for connectionInfo.database: <file>.gpkg to be found by the provider.
           {{- if .Values.livenessProbe.enabled }}
           livenessProbe:
             httpGet:
@@ -77,10 +78,10 @@ spec:
           {{- end }}
           volumeMounts:
             {{- if .Values.serviceConfig.useConfigMaps }}
-            # mounted directly (no subPath), so ConfigMap updates propagate without a restart
-            - name: entities-services
+            # store- volumes hold real files kept in sync from cm- volumes by config-sync
+            - name: store-services
               mountPath: /data/entities/instances/services
-            - name: entities-providers
+            - name: store-providers
               mountPath: /data/entities/instances/providers
             - name: entities-defaults
               mountPath: /data/entities/defaults
@@ -102,6 +103,50 @@ spec:
               mountPath: /data/tmp
           resources:
 {{- toYaml .Values.resources | nindent 12 }}
+        {{- if .Values.serviceConfig.useConfigMaps }}
+        # ConfigMap mounts are symlink chains (..data -> ..<ts>/file); ldproxy's entity
+        # walker does not follow symlinks so those files are never discovered. This
+        # sidecar dereferences them into plain regular files on a polling interval.
+        # ldproxy itself writes back into these entity files (autoPersist, lastModified,
+        # storage-version migration), so syncing must be one-way and change-aware: only
+        # overwrite a file when its ConfigMap source actually changed since the last
+        # tick, otherwise ldproxy's own writes are left untouched between config edits.
+        - name: config-sync
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |-
+              set -e
+              mkdir -p /var/lib/config-sync/services /var/lib/config-sync/providers
+              sync_dir() {
+                src=$1; dst=$2; mirror=$3
+                for f in "$src"/*; do
+                  [ -e "$f" ] || continue
+                  name=$(basename "$f")
+                  if ! cmp -s "$f" "$mirror/$name" 2>/dev/null; then
+                    cp -L "$f" "$dst/$name"
+                    cp -L "$f" "$mirror/$name"
+                  fi
+                done
+              }
+              while true; do
+                sync_dir /cm/services /store/services /var/lib/config-sync/services
+                sync_dir /cm/providers /store/providers /var/lib/config-sync/providers
+                sleep 5
+              done
+          volumeMounts:
+            - name: entities-services
+              mountPath: /cm/services
+              readOnly: true
+            - name: entities-providers
+              mountPath: /cm/providers
+              readOnly: true
+            - name: store-services
+              mountPath: /store/services
+            - name: store-providers
+              mountPath: /store/providers
+        {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
@@ -109,6 +154,7 @@ spec:
         - name: gpkg
           emptyDir: {}
         {{- if .Values.serviceConfig.useConfigMaps }}
+        # raw ConfigMap sources (symlinks); only read by config-sync, never by ldproxy
         - name: entities-services
           configMap:
             name: {{ .Values.serviceConfig.serviceConfigMap }}
@@ -128,6 +174,11 @@ spec:
                     - key: {{ .Values.serviceConfig.tilesProviderConfigKey }}
                       path: {{ .Values.serviceConfig.tilesProviderConfigKey }}
               {{- end }}
+        # writable, real-file mirrors of the ConfigMaps above, kept in sync by config-sync
+        - name: store-services
+          emptyDir: {}
+        - name: store-providers
+          emptyDir: {}
         - name: entities-defaults
           emptyDir: {}
         - name: entities-overrides
